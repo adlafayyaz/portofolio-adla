@@ -485,6 +485,34 @@
                                     <tbody class="bg-white divide-y divide-gray-200">
                                         <tr class="hover:bg-gray-50 transition-colors duration-150">
                                             <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">08:00 - 10:30</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm font-medium text-gray-900">Audit Sistem Informasi</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-600">Andhika Octa Indarso, S.Kom., MMSI</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">FIK-403</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">09:40 - 12:10</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm font-medium text-gray-900">Audit Sistem Informasi (Online)</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-600">Widya Cholil, M.IT</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">VCR-FIK-KB-1</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                            <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="text-sm font-medium text-gray-900">13:00 - 15:30</div>
                                             </td>
                                             <td class="px-6 py-4">
@@ -745,54 +773,63 @@
 
         // Function to find nearest upcoming class
         function findNearestClass() {
-            const now = new Date();
-            const currentDay = now.getDay(); // 0=Sunday, 1=Monday, etc.
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            
-            // Map day indexes to our schedule days (Tuesday=1, Wednesday=2, etc.)
-            const dayMap = {2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday'};
-            const today = dayMap[currentDay];
-            
-            // If today is a scheduled day, open it
-            if (today) {
-                showSchedule(today);
-                
-                // Find nearest class in today's schedule
-                const rows = document.querySelectorAll(`#${today}-schedule tr`);
-                let nearestClass = null;
-                let smallestDiff = Infinity;
-                
-                rows.forEach(row => {
-                    const timeCell = row.querySelector('td:first-child');
-                    if (timeCell) {
-                        const timeText = timeCell.textContent.trim();
-                        if (timeText.includes('-')) {
-                            const [startTime, endTime] = timeText.split('-').map(t => t.trim());
-                            const [startHour, startMinute] = startTime.split(':').map(Number);
-                            
-                            // Calculate time difference in minutes
-                            const timeDiff = (startHour * 60 + startMinute) - (currentHour * 60 + currentMinute);
-                            
-                            // If class is upcoming and closer than previous found
-                            if (timeDiff >= 0 && timeDiff < smallestDiff) {
-                                smallestDiff = timeDiff;
-                                nearestClass = row;
-                            }
-                        }
-                    }
-                });
-                
-                // Highlight nearest class
-                if (nearestClass) {
-                    nearestClass.classList.add('bg-accent', 'bg-opacity-10');
-                    nearestClass.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Map day indexes sesuai jadwal (Selasa=2, Rabu=3, Kamis=4, Jumat=5)
+    const dayMap = {2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday'};
+    const today = dayMap[currentDay];
+
+    // Hilangkan highlight dari semua baris jadwal terlebih dahulu
+    document.querySelectorAll('.schedule-content tbody tr').forEach(row => {
+        row.classList.remove('bg-accent', 'bg-opacity-10');
+    });
+
+    if (today) {
+        showSchedule(today);
+
+        const rows = document.querySelectorAll(`#${today}-schedule tbody tr`);
+        let nearestClass = null;
+        let smallestDiff = Infinity;
+
+        for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const timeCell = row.querySelector('td:first-child');
+    if (timeCell) {
+        const timeText = timeCell.textContent.trim();
+        if (timeText.includes('-')) {
+            const [startTime, endTime] = timeText.split('-').map(t => t.trim());
+            const [startHour, startMinute] = startTime.split(':').map(Number);
+            const [endHour, endMinute] = endTime.split(':').map(Number);
+
+            const startTotal = startHour * 60 + startMinute;
+            const endTotal = endHour * 60 + endMinute;
+
+            if (currentMinutes >= startTotal && currentMinutes <= endTotal) {
+                nearestClass = row;
+                smallestDiff = 0;
+                break;  // hentikan loop jika ada kelas sedang berlangsung
+            } else if (currentMinutes < startTotal) {
+                const diff = startTotal - currentMinutes;
+                if (diff < smallestDiff) {
+                    smallestDiff = diff;
+                    nearestClass = row;
                 }
-            } else {
-                // If not a scheduled day, open Tuesday by default
-                showSchedule('tuesday');
             }
         }
+    }
+}
+
+        if (nearestClass) {
+            nearestClass.classList.add('bg-accent', 'bg-opacity-10');
+            nearestClass.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    } else {
+        // Hari diluar jadwal, tampilkan Selasa sebagai default
+        showSchedule('tuesday');
+    }
+}
 
         // Highlight active day in schedule
         const scheduleDays = document.querySelectorAll('.schedule-day');
@@ -810,17 +847,17 @@
         // Add style for highlighted row
         const style = document.createElement('style');
         style.innerHTML = `
-            #tuesday-schedule tr.bg-accent,
-            #wednesday-schedule tr.bg-accent,
-            #thursday-schedule tr.bg-accent,
-            #friday-schedule tr.bg-accent {
+            #tuesday-schedule tr.bg-green-100,
+            #wednesday-schedule tr.bg-green-100,
+            #thursday-schedule tr.bg-green-100,
+            #friday-schedule tr.bg-green-100 {
                 transition: background-color 0.3s ease;
             }
-            #tuesday-schedule tr.bg-accent:hover,
-            #wednesday-schedule tr.bg-accent:hover,
-            #thursday-schedule tr.bg-accent:hover,
-            #friday-schedule tr.bg-accent:hover {
-                background-color: rgba(13, 148, 136, 0.2) !important;
+            #tuesday-schedule tr.bg-blue-100,
+            #wednesday-schedule tr.bg-blue-100,
+            #thursday-schedule tr.bg-blue-100,
+            #friday-schedule tr.bg-blue-100 {
+                transition: background-color 0.3s ease;
             }
         `;
         document.head.appendChild(style);
