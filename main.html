@@ -771,65 +771,84 @@
             event.currentTarget.classList.add('active-day');
         }
 
-        // Function to find nearest upcoming class
+        // Function to find current or next upcoming class
         function findNearestClass() {
-    const now = new Date();
-    const currentDay = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // Map day indexes sesuai jadwal (Selasa=2, Rabu=3, Kamis=4, Jumat=5)
-    const dayMap = {2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday'};
-    const today = dayMap[currentDay];
-
-    // Hilangkan highlight dari semua baris jadwal terlebih dahulu
-    document.querySelectorAll('.schedule-content tbody tr').forEach(row => {
-        row.classList.remove('bg-accent', 'bg-opacity-10');
-    });
-
-    if (today) {
-        showSchedule(today);
-
-        const rows = document.querySelectorAll(`#${today}-schedule tbody tr`);
-        let nearestClass = null;
-        let smallestDiff = Infinity;
-
-        for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const timeCell = row.querySelector('td:first-child');
-    if (timeCell) {
-        const timeText = timeCell.textContent.trim();
-        if (timeText.includes('-')) {
-            const [startTime, endTime] = timeText.split('-').map(t => t.trim());
-            const [startHour, startMinute] = startTime.split(':').map(Number);
-            const [endHour, endMinute] = endTime.split(':').map(Number);
-
-            const startTotal = startHour * 60 + startMinute;
-            const endTotal = endHour * 60 + endMinute;
-
-            if (currentMinutes >= startTotal && currentMinutes <= endTotal) {
-                nearestClass = row;
-                smallestDiff = 0;
-                break;  // hentikan loop jika ada kelas sedang berlangsung
-            } else if (currentMinutes < startTotal) {
-                const diff = startTotal - currentMinutes;
-                if (diff < smallestDiff) {
-                    smallestDiff = diff;
-                    nearestClass = row;
+            const now = new Date();
+            const currentDay = now.getDay(); // 0=Sunday, 1=Monday, etc.
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTime = currentHour * 60 + currentMinute;
+            
+            // Map day indexes to our schedule days (Tuesday=2, Wednesday=3, etc.)
+            const dayMap = {2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday'};
+            const today = dayMap[currentDay];
+            
+            // If today is a scheduled day, open it
+            if (today) {
+                showSchedule(today);
+                
+                // Find current or next class in today's schedule
+                const rows = document.querySelectorAll(`#${today}-schedule tr`);
+                let currentClass = null;
+                let nextClass = null;
+                let smallestDiff = Infinity;
+                
+                // First remove any existing highlights
+                rows.forEach(row => {
+                    row.classList.remove('current-class', 'next-class');
+                });
+                
+                rows.forEach(row => {
+                    const timeCell = row.querySelector('td:first-child');
+                    if (timeCell) {
+                        const timeText = timeCell.textContent.trim();
+                        if (timeText.includes('-')) {
+                            const [startTime, endTime] = timeText.split('-').map(t => t.trim());
+                            const [startHour, startMinute] = startTime.split(':').map(Number);
+                            const [endHour, endMinute] = endTime.split(':').map(Number);
+                            
+                            const startTimeInMinutes = startHour * 60 + startMinute;
+                            const endTimeInMinutes = endHour * 60 + endMinute;
+                            
+                            // Check if current time is during this class
+                            if (currentTime >= startTimeInMinutes && currentTime <= endTimeInMinutes) {
+                                currentClass = row;
+                            }
+                            
+                            // Check for next upcoming class
+                            if (currentTime < endTimeInMinutes) {
+                                const timeDiff = startTimeInMinutes - currentTime;
+                                if (timeDiff >= 0 && timeDiff < smallestDiff) {
+                                    smallestDiff = timeDiff;
+                                    nextClass = row;
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Highlight only the single most relevant class (current or next)
+                let classToHighlight = null;
+                
+                if (currentClass) {
+                    classToHighlight = currentClass;
+                    classToHighlight.classList.add('current-class');
+                } else if (nextClass) {
+                    classToHighlight = nextClass;
+                    classToHighlight.classList.add('next-class');
                 }
+                
+                if (classToHighlight) {
+                    classToHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                // If not a scheduled day, open Tuesday by default
+                showSchedule('tuesday');
             }
+            
+            // Refresh highlights every minute
+            setTimeout(findNearestClass, 60000);
         }
-    }
-}
-
-        if (nearestClass) {
-            nearestClass.classList.add('bg-accent', 'bg-opacity-10');
-            nearestClass.scrollIntoView({behavior: 'smooth', block: 'center'});
-        }
-    } else {
-        // Hari diluar jadwal, tampilkan Selasa sebagai default
-        showSchedule('tuesday');
-    }
-}
 
         // Highlight active day in schedule
         const scheduleDays = document.querySelectorAll('.schedule-day');
@@ -847,17 +866,21 @@
         // Add style for highlighted row
         const style = document.createElement('style');
         style.innerHTML = `
-            #tuesday-schedule tr.bg-green-100,
-            #wednesday-schedule tr.bg-green-100,
-            #thursday-schedule tr.bg-green-100,
-            #friday-schedule tr.bg-green-100 {
-                transition: background-color 0.3s ease;
+            .current-class {
+                background-color: #d1fae5 !important; /* Light green */
+                font-weight: bold;
+                transition: all 0.3s ease;
             }
-            #tuesday-schedule tr.bg-blue-100,
-            #wednesday-schedule tr.bg-blue-100,
-            #thursday-schedule tr.bg-blue-100,
-            #friday-schedule tr.bg-blue-100 {
-                transition: background-color 0.3s ease;
+            
+            .next-class {
+                background-color: #dbeafe !important; /* Light blue */
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }
+            
+            .current-class td,
+            .next-class td {
+                color: #111827 !important; /* Dark gray */
             }
         `;
         document.head.appendChild(style);
